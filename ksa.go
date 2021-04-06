@@ -7,7 +7,7 @@ import (
 	"strings"
 	"os/exec"
 	"strconv"
-	"log"
+	//"log"
 )
 
 func chcekFile(e error){
@@ -15,6 +15,29 @@ func chcekFile(e error){
 		panic(e)
 	}
 }
+
+func updateVariablesMap(key string)string{
+	if _, status := variablesMap[key]; !status{
+		variablesMap[key] = strconv.Itoa(variablesCounter)
+		variablesCounter++
+	}
+	return variablesMap[key]
+}
+
+func isKeyword(key string)bool{
+	switch(key){
+	case "if":
+		return true
+	case "$":
+		return true
+	}
+	return false
+}
+
+//creating variables hashmap
+var variablesMap = make(map[string]string)
+//creating variables counter
+var variablesCounter = 1
 
 
 func main(){
@@ -37,9 +60,8 @@ func main(){
 			fmt.Println(err)
 		} else {
 
-
 			//write gerenratet C to its new file
-			outputC.WriteString("#include<stdlib.h>\n#include<stdio.h>\nint main(){\nchar memory[5000];\nchar* memoryStart = &memory[0];\nchar* memoryPointer = memoryStart;\n")
+			outputC.WriteString("#include<stdlib.h>\n#include<stdio.h>\nint main(){\nint memory[5000];\nint* memoryStart = &memory[0];\nint* memoryPointer = memoryStart;\n")
 
 
 			//creating scanner to read lie by line
@@ -55,10 +77,14 @@ func main(){
 					//split each line by spaces
 					commandArguments := strings.Fields(line)
 					memoryCellNumber := "0"
+					if(len(commandArguments) == 0){
+						continue
+					}
 					// check if first elelemt in aray is a memory cell number
-					if _, err := strconv.Atoi(commandArguments[0]); err == nil {
-						//change memorycell number to string
-						memoryCellNumber = commandArguments[0]
+					if commandArguments[0][0] != '*' && !isKeyword(commandArguments[0]) {
+						//handeling variable name
+						variableName := commandArguments[0]
+						memoryCellNumber = updateVariablesMap(variableName)
 						//load operator
 						operator := commandArguments[1]
 
@@ -70,10 +96,11 @@ func main(){
 							outputLine := ""
 							//genebrate output string
 							if(memoryOperatorCellNumber[0] != '('){
+								memoryOperatorCellNumber = updateVariablesMap(memoryOperatorCellNumber)
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = *(memoryStart+" + memoryOperatorCellNumber + ");"
 
 							}else{
-								memoryOperatorCellNumber = memoryOperatorCellNumber[1:len(memoryOperatorCellNumber)-1]
+								memoryOperatorCellNumber = commandArguments[2][1:len(commandArguments[2])-1]
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = " + memoryOperatorCellNumber + ";"
 							}	
 							//write to outputCode
@@ -85,6 +112,7 @@ func main(){
 							outputLine := ""
 							if(memoryOperatorCellNumber[0] != '('){
 								//genebrate output string
+								memoryOperatorCellNumber = updateVariablesMap(memoryOperatorCellNumber)
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = *(memoryStart+" + memoryCellNumber + ") + *(memoryStart+" + memoryOperatorCellNumber + ");"
 						
 							}else{
@@ -100,6 +128,7 @@ func main(){
 							outputLine := ""
 							if(memoryOperatorCellNumber[0] != '('){
 								//genebrate output string
+								memoryOperatorCellNumber = updateVariablesMap(memoryOperatorCellNumber)
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = *(memoryStart+" + memoryCellNumber + ") - *(memoryStart+" + memoryOperatorCellNumber + ");"
 						
 							}else{
@@ -115,6 +144,7 @@ func main(){
 							outputLine := ""
 							if(memoryOperatorCellNumber[0] != '('){
 								//genebrate output string
+								memoryOperatorCellNumber = updateVariablesMap(memoryOperatorCellNumber)
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = *(memoryStart+" + memoryCellNumber + ") * *(memoryStart+" + memoryOperatorCellNumber + ");"
 						
 							}else{
@@ -130,6 +160,7 @@ func main(){
 							outputLine := ""
 							if(memoryOperatorCellNumber[0] != '('){
 								//genebrate output string
+								memoryOperatorCellNumber = updateVariablesMap(memoryOperatorCellNumber)
 								outputLine = "*(memoryStart+" + memoryCellNumber + ") = *(memoryStart+" + memoryCellNumber + ") / *(memoryStart+" + memoryOperatorCellNumber + ");"
 						
 							}else{
@@ -227,7 +258,7 @@ func main(){
 						case "if":
 							outputLine := ""
 							comparator := commandArguments[1]
-							memoryCellNumber := commandArguments[2]
+							memoryCellNumber := updateVariablesMap(commandArguments[2])
 							jumpEnd := commandArguments[3]
 
 							if comparator == "<"{
@@ -243,7 +274,7 @@ func main(){
 							outputLine := "goto " + jumpEnd + ";"
 							outputC.WriteString(outputLine + "\n")
 						default:							
-							labelName := commandArguments[0]
+							labelName := commandArguments[0][1:]
 							outputLine := labelName + ":"
 							outputC.WriteString(outputLine + "\n")							
 						}
@@ -257,7 +288,7 @@ func main(){
 
 
 		// savig outout code to memory
-		outputC.WriteString("*(memoryStart+9999) = 0;\n}")
+		outputC.WriteString("*(memoryStart+9999) = 0;\nfree(memory);\n}")
 
 		sourceCodeFile.Close()
 		outputC.Close()
@@ -265,10 +296,10 @@ func main(){
 		cmd := exec.Command("gcc", "outputSourceCode.c", "-o", compiledFileName)
 		err = cmd.Run()
 		//removing temporary c file
-		e := os.Remove("outputSourceCode.c")
-		if e != nil {
-			log.Fatal(e)
-		}
+		//e := os.Remove("outputSourceCode.c")
+		//if e != nil {
+		//	log.Fatal(e)
+		//}
 
 	} else {
 		//input file not specified
