@@ -39,7 +39,7 @@ go build ksa.go
 x = (10)
 y = ('a')
 ```
-### Ccopy one value to the other variable:
+### Copy one value to the other variable:
 ```
 z = x
 ```
